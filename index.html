@@ -260,9 +260,9 @@ function loadData() {
       { id: 'c8', name: 'Energie', emoji: '⚡', color: '#F39C12' },
       { id: 'c9', name: 'Ostatní', emoji: '📦', color: '#95A5A6' }
     ]),
-    expenses: STORE.get('expenses', []),
-    transfers: STORE.get('transfers', []),
-    deadlines: STORE.get('deadlines', []),
+    expenses: STORE.get('expenses', []) || [],
+    transfers: STORE.get('transfers', []) || [],
+    deadlines: STORE.get('deadlines', []) || [],
     planned: STORE.get('planned', []),
     paycheck: STORE.get('paycheck', { expectedDate: '', actualDate: '', amount: 0, history: [] }),
     savingsMilestones: STORE.get('savingsMilestones', [
@@ -436,8 +436,8 @@ function renderHome() {
   }
 
   // Recent activity: last 5 expenses + transfers merged by date
-  const recentExps = D.expenses.map(e => ({ ...e, _type: 'expense' }));
-  const recentTrs  = D.transfers.map(t => ({ ...t, _type: 'transfer' }));
+  const recentExps = (D.expenses || []).map(e => ({ ...e, _type: 'expense' }));
+  const recentTrs  = (D.transfers || []).map(t => ({ ...t, _type: 'transfer' }));
   const recent = [...recentExps, ...recentTrs]
     .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
     .slice(0, 5);
@@ -626,9 +626,9 @@ function renderExpenses() {
   if (!expCatFilter) {
     if (expFilter === 'cycle') {
       const { start, end } = getCycleRange();
-      transfers = D.transfers.filter(t => t.date >= start && t.date < end);
+      transfers = (D.transfers || []).filter(t => t.date >= start && t.date < end);
     } else {
-      transfers = D.transfers.filter(t => t.date.slice(0, 7) === expMonth);
+      transfers = (D.transfers || []).filter(t => t.date.slice(0, 7) === expMonth);
     }
     transfers = [...transfers].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
   }
@@ -1044,7 +1044,16 @@ function importDataPrompt() {
       try {
         const imported = JSON.parse(ev.target.result);
         if (confirm('Přepsat všechna data importem?')) {
-          D = imported;
+          D = {
+            accounts:          Array.isArray(imported.accounts)          ? imported.accounts          : [],
+            categories:        Array.isArray(imported.categories)        ? imported.categories        : [],
+            expenses:          Array.isArray(imported.expenses)          ? imported.expenses          : [],
+            transfers:         Array.isArray(imported.transfers)         ? imported.transfers         : [],
+            deadlines:         Array.isArray(imported.deadlines)         ? imported.deadlines         : [],
+            planned:           Array.isArray(imported.planned)           ? imported.planned           : [],
+            paycheck:          imported.paycheck          || { expectedDate: '', actualDate: '', amount: 0, history: [] },
+            savingsMilestones: Array.isArray(imported.savingsMilestones) ? imported.savingsMilestones : []
+          };
           saveData(D);
           renderMain();
         }
@@ -1217,7 +1226,7 @@ function openAddAccount() {
 function openEditAccount(id) {
   const a = D.accounts.find(x => x.id === id);
   if (!a) return;
-  const accTransfers = D.transfers
+  const accTransfers = (D.transfers || [])
     .filter(t => t.fromAccountId === id || t.toAccountId === id)
     .sort((a2, b) => b.date.localeCompare(a2.date))
     .slice(0, 5);

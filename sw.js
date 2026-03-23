@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vault-v1';
+const CACHE_NAME = 'vault-v2';
 const ASSETS = ['/vault/', '/vault/index.html', '/vault/manifest.json', '/vault/icon-192.png', '/vault/icon-512.png'];
 
 self.addEventListener('install', e => {
