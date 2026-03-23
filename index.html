@@ -203,9 +203,57 @@ canvas { max-width: 100%; }
 
 /* Category filter select */
 #cat-filter-select { width: 100%; padding: 8px 12px; background: var(--card); border: 1.5px solid var(--border); border-radius: 10px; font-family: inherit; font-size: 12px; color: var(--text); margin-bottom: 12px; appearance: none; }
+
+/* PIN Lock screen */
+#pin-screen { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px 24px calc(20px + env(safe-area-inset-bottom)); }
+#pin-screen.hidden { display: none; }
+.pin-logo { font-size: 52px; margin-bottom: 6px; }
+.pin-app-name { font-family: Georgia, serif; font-size: 26px; color: var(--accent2); }
+.pin-tagline { font-size: 9px; letter-spacing: 3px; color: var(--text2); margin-top: 2px; margin-bottom: 36px; }
+.pin-prompt { font-size: 11px; letter-spacing: 2px; color: var(--text2); margin-bottom: 22px; text-align: center; text-transform: uppercase; min-height: 16px; }
+.pin-dots { display: flex; gap: 18px; margin-bottom: 12px; }
+.pin-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border); background: transparent; transition: background 0.12s, border-color 0.12s; }
+.pin-dot.filled { background: var(--accent); border-color: var(--accent); }
+.pin-dot.error { background: var(--red); border-color: var(--red); }
+.pin-error { color: var(--red); font-size: 11px; letter-spacing: 1px; text-align: center; min-height: 18px; margin-bottom: 20px; }
+.pin-numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; max-width: 270px; }
+.pin-key { background: var(--card); border: 1.5px solid var(--border); border-radius: 16px; padding: 18px 8px; font-family: Georgia, serif; font-size: 24px; color: var(--text); cursor: pointer; text-align: center; user-select: none; -webkit-user-select: none; transition: background 0.1s, transform 0.08s; box-shadow: var(--shadow); }
+.pin-key:active { background: var(--header); transform: scale(0.95); }
+.pin-key.del { font-family: inherit; font-size: 18px; color: var(--text2); }
+.pin-key.empty { visibility: hidden; box-shadow: none; border-color: transparent; background: transparent; }
 </style>
 </head>
 <body>
+
+<!-- PIN Lock Screen -->
+<div id="pin-screen" class="hidden">
+  <div class="pin-logo">🔒</div>
+  <div class="pin-app-name">Vault</div>
+  <div class="pin-tagline">OSOBNÍ FINANCE</div>
+  <div class="pin-prompt" id="pin-prompt"></div>
+  <div class="pin-dots">
+    <div class="pin-dot" id="pin-d0"></div>
+    <div class="pin-dot" id="pin-d1"></div>
+    <div class="pin-dot" id="pin-d2"></div>
+    <div class="pin-dot" id="pin-d3"></div>
+  </div>
+  <div class="pin-error" id="pin-error"></div>
+  <div class="pin-numpad">
+    <button class="pin-key" onclick="pinInput('1')">1</button>
+    <button class="pin-key" onclick="pinInput('2')">2</button>
+    <button class="pin-key" onclick="pinInput('3')">3</button>
+    <button class="pin-key" onclick="pinInput('4')">4</button>
+    <button class="pin-key" onclick="pinInput('5')">5</button>
+    <button class="pin-key" onclick="pinInput('6')">6</button>
+    <button class="pin-key" onclick="pinInput('7')">7</button>
+    <button class="pin-key" onclick="pinInput('8')">8</button>
+    <button class="pin-key" onclick="pinInput('9')">9</button>
+    <button class="pin-key empty" disabled aria-hidden="true"></button>
+    <button class="pin-key" onclick="pinInput('0')">0</button>
+    <button class="pin-key del" onclick="pinDelete()">⌫</button>
+  </div>
+</div>
+
 <div id="app">
   <div id="header">
     <div id="header-left">
@@ -282,6 +330,7 @@ function saveData(data) {
   STORE.set('planned', data.planned);
   STORE.set('paycheck', data.paycheck);
   STORE.set('savingsMilestones', data.savingsMilestones);
+  setTimeout(() => gistBackup(), 0);
 }
 
 let D = loadData();
@@ -979,6 +1028,36 @@ function renderSettings() {
     </div>
   </div>`;
 
+  // Bezpečnost
+  html += `<div class="settings-section">
+    <div class="settings-section-title">BEZPEČNOST</div>
+    <div class="settings-item">
+      <div class="si-left"><div style="font-size:13px">PIN zámek</div><div style="font-size:10px;color:var(--text2);margin-top:2px">4-místný kód</div></div>
+      <button class="edit-btn" onclick="showPinScreen('change')">Změnit PIN</button>
+    </div>
+  </div>`;
+
+  // Záloha
+  const ghToken = localStorage.getItem('vault_github_token') || '';
+  const lastBak = localStorage.getItem('vault_last_backup') || '';
+  const bakStatusTxt = ghToken
+    ? (lastBak
+        ? '✅ ' + new Date(lastBak).toLocaleString('cs-CZ', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})
+        : '⏳ Čeká na první zálohu')
+    : '⚠️ Nepropojeno';
+  const bakStatusColor = ghToken ? 'var(--green)' : 'var(--amber)';
+  html += `<div class="settings-section">
+    <div class="settings-section-title">ZÁLOHA</div>
+    <div class="settings-item">
+      <div class="si-left">
+        <div style="font-size:13px">GitHub Gist</div>
+        <div style="font-size:10px;color:${bakStatusColor};margin-top:2px">${bakStatusTxt}</div>
+      </div>
+      <button class="edit-btn" onclick="openGithubSettings()">${ghToken ? 'Nastavení' : 'Propojit'}</button>
+    </div>
+    ${ghToken ? `<button class="add-btn-full" style="margin-top:4px" onclick="gistRestore()">⬇️ Obnovit ze zálohy</button>` : ''}
+  </div>`;
+
   // Kategorie
   html += `<div class="settings-section">
     <div class="settings-section-title">KATEGORIE</div>
@@ -1529,6 +1608,271 @@ function savePaycheck() {
 }
 
 // ============================================================
+// PIN LOCK
+// ============================================================
+let pinBuffer = '';
+let pinMode = 'unlock';
+let pinTemp = '';
+let pinAttempts = 0;
+let pinCooldownEnd = 0;
+
+const PIN_PROMPTS = {
+  'unlock':         'Zadejte PIN',
+  'setup':          'Vytvořte nový PIN',
+  'setup-confirm':  'Potvrďte PIN',
+  'change':         'Zadejte stávající PIN',
+  'change-new':     'Zadejte nový PIN',
+  'change-confirm': 'Potvrďte nový PIN'
+};
+
+function showPinScreen(mode) {
+  pinMode = mode;
+  pinBuffer = '';
+  pinTemp = '';
+  if (mode === 'change') pinAttempts = 0;
+  document.getElementById('pin-screen').classList.remove('hidden');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('pin-error').textContent = '';
+  _pinUpdatePrompt();
+  _pinUpdateDots();
+}
+
+function hidePinScreen() {
+  document.getElementById('pin-screen').classList.add('hidden');
+  document.getElementById('app').style.display = '';
+}
+
+function _pinUpdatePrompt() {
+  document.getElementById('pin-prompt').textContent = PIN_PROMPTS[pinMode] || '';
+}
+
+function _pinUpdateDots() {
+  for (let i = 0; i < 4; i++) {
+    const d = document.getElementById('pin-d' + i);
+    d.classList.toggle('filled', i < pinBuffer.length);
+    d.classList.remove('error');
+  }
+}
+
+function _pinShakeError(msg) {
+  document.getElementById('pin-error').textContent = msg;
+  for (let i = 0; i < 4; i++) document.getElementById('pin-d' + i).classList.add('error');
+  setTimeout(() => { pinBuffer = ''; _pinUpdateDots(); }, 520);
+}
+
+function pinInput(digit) {
+  if (Date.now() < pinCooldownEnd) return;
+  if (pinBuffer.length >= 4) return;
+  document.getElementById('pin-error').textContent = '';
+  pinBuffer += digit;
+  _pinUpdateDots();
+  if (pinBuffer.length === 4) setTimeout(pinSubmit, 130);
+}
+
+function pinDelete() {
+  if (Date.now() < pinCooldownEnd) return;
+  if (pinBuffer.length > 0) { pinBuffer = pinBuffer.slice(0, -1); _pinUpdateDots(); }
+}
+
+function pinSubmit() {
+  const stored = localStorage.getItem('vault_pin');
+
+  if (pinMode === 'unlock') {
+    if (pinBuffer === stored) {
+      pinAttempts = 0;
+      hidePinScreen();
+    } else {
+      pinAttempts++;
+      if (pinAttempts >= 3) {
+        pinCooldownEnd = Date.now() + 30000;
+        _pinCooldownTick();
+      } else {
+        _pinShakeError(`Nesprávný PIN — ${3 - pinAttempts} pokus${3 - pinAttempts === 1 ? '' : 'y'} zbývají`);
+      }
+    }
+
+  } else if (pinMode === 'setup') {
+    pinTemp = pinBuffer;
+    pinBuffer = '';
+    pinMode = 'setup-confirm';
+    _pinUpdatePrompt();
+    _pinUpdateDots();
+
+  } else if (pinMode === 'setup-confirm') {
+    if (pinBuffer === pinTemp) {
+      localStorage.setItem('vault_pin', pinBuffer);
+      hidePinScreen();
+    } else {
+      pinTemp = '';
+      pinMode = 'setup';
+      _pinShakeError('PINy se neshodují — zkuste znovu');
+      setTimeout(_pinUpdatePrompt, 550);
+    }
+
+  } else if (pinMode === 'change') {
+    if (pinBuffer === stored) {
+      pinBuffer = '';
+      pinMode = 'change-new';
+      _pinUpdatePrompt();
+      _pinUpdateDots();
+    } else {
+      _pinShakeError('Nesprávný stávající PIN');
+    }
+
+  } else if (pinMode === 'change-new') {
+    pinTemp = pinBuffer;
+    pinBuffer = '';
+    pinMode = 'change-confirm';
+    _pinUpdatePrompt();
+    _pinUpdateDots();
+
+  } else if (pinMode === 'change-confirm') {
+    if (pinBuffer === pinTemp) {
+      localStorage.setItem('vault_pin', pinBuffer);
+      hidePinScreen();
+      renderMain();
+    } else {
+      pinTemp = '';
+      pinMode = 'change-new';
+      _pinShakeError('PINy se neshodují — zkuste znovu');
+      setTimeout(_pinUpdatePrompt, 550);
+    }
+  }
+}
+
+function _pinCooldownTick() {
+  const rem = Math.ceil((pinCooldownEnd - Date.now()) / 1000);
+  const el = document.getElementById('pin-error');
+  if (rem <= 0) {
+    el.textContent = '';
+    el.style.color = '';
+    pinAttempts = 0;
+    pinBuffer = '';
+    _pinUpdateDots();
+    return;
+  }
+  el.style.color = 'var(--amber)';
+  el.textContent = `Příliš mnoho pokusů — čekejte ${rem}s`;
+  setTimeout(_pinCooldownTick, 1000);
+}
+
+function initPinLock() {
+  const stored = localStorage.getItem('vault_pin');
+  if (!stored) {
+    showPinScreen('setup');
+  } else {
+    showPinScreen('unlock');
+  }
+}
+
+// ============================================================
+// GITHUB GIST BACKUP
+// ============================================================
+async function gistBackup() {
+  const token = localStorage.getItem('vault_github_token');
+  if (!token) return;
+  const content = JSON.stringify(D, null, 2);
+  const gistId  = localStorage.getItem('vault_gist_id') || '';
+  try {
+    const url = gistId
+      ? `https://api.github.com/gists/${gistId}`
+      : 'https://api.github.com/gists';
+    const res = await fetch(url, {
+      method: gistId ? 'PATCH' : 'POST',
+      headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description: 'Vault finance backup', public: false, files: { 'vault-backup.json': { content } } })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!gistId) localStorage.setItem('vault_gist_id', data.id);
+    localStorage.setItem('vault_last_backup', new Date().toISOString());
+    if (currentTab === 'settings') renderMain();
+  } catch (e) {
+    console.warn('Vault backup failed:', e.message);
+  }
+}
+
+async function gistRestore() {
+  const token  = localStorage.getItem('vault_github_token');
+  const gistId = localStorage.getItem('vault_gist_id');
+  if (!token) { alert('Nejprve propojte GitHub v nastavení'); return; }
+  if (!gistId) { alert('Žádná záloha nenalezena — nejprve proveďte zálohu'); return; }
+  try {
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+      headers: { 'Authorization': `token ${token}` }
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const content = data.files['vault-backup.json']?.content;
+    if (!content) { alert('Soubor vault-backup.json nenalezen v Gist'); return; }
+    const imported = JSON.parse(content);
+    if (!confirm('Přepsat aktuální data zálohou z GitHubu?')) return;
+    D = {
+      accounts:          Array.isArray(imported.accounts)          ? imported.accounts          : [],
+      categories:        Array.isArray(imported.categories)        ? imported.categories        : [],
+      expenses:          Array.isArray(imported.expenses)          ? imported.expenses          : [],
+      transfers:         Array.isArray(imported.transfers)         ? imported.transfers         : [],
+      deadlines:         Array.isArray(imported.deadlines)         ? imported.deadlines         : [],
+      planned:           Array.isArray(imported.planned)           ? imported.planned           : [],
+      paycheck:          imported.paycheck          || { expectedDate: '', actualDate: '', amount: 0, history: [] },
+      savingsMilestones: Array.isArray(imported.savingsMilestones) ? imported.savingsMilestones : []
+    };
+    // save without re-triggering backup
+    STORE.set('accounts', D.accounts); STORE.set('categories', D.categories);
+    STORE.set('expenses', D.expenses); STORE.set('transfers', D.transfers);
+    STORE.set('deadlines', D.deadlines); STORE.set('planned', D.planned);
+    STORE.set('paycheck', D.paycheck); STORE.set('savingsMilestones', D.savingsMilestones);
+    renderMain();
+    alert('✅ Data obnovena ze zálohy');
+  } catch (e) {
+    alert('Chyba při obnově: ' + e.message);
+  }
+}
+
+function openGithubSettings() {
+  const token  = localStorage.getItem('vault_github_token') || '';
+  const gistId = localStorage.getItem('vault_gist_id') || '';
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">🐙 GitHub záloha</div>
+    <div class="form-group">
+      <label>PERSONAL ACCESS TOKEN</label>
+      <input type="password" id="gh-token" value="${token}" placeholder="ghp_xxxxxxxxxxxx">
+      <div style="font-size:10px;color:var(--text2);margin-top:5px">Vytvořte token na github.com → Settings → Developer settings → Tokens.<br>Potřebný scope: <strong>gist</strong></div>
+    </div>
+    <button class="btn-primary" onclick="saveGithubToken()">Uložit token</button>
+    ${token ? `
+      <button class="btn-secondary" onclick="closeModal();gistBackup().then(()=>renderMain())">⬆️ Zálohovat nyní</button>
+      <button class="btn-secondary" onclick="closeModal();gistRestore()">⬇️ Obnovit ze zálohy</button>
+      <button class="btn-danger" onclick="disconnectGithub()">Odpojit GitHub</button>
+      ${gistId ? `<div style="font-size:9px;color:var(--text2);margin-top:10px;text-align:center;letter-spacing:1px">GIST ID: ${gistId}</div>` : ''}
+    ` : ''}
+  `);
+}
+
+function saveGithubToken() {
+  const token = document.getElementById('gh-token').value.trim();
+  if (token) {
+    localStorage.setItem('vault_github_token', token);
+  } else {
+    disconnectGithub();
+    return;
+  }
+  closeModal();
+  renderMain();
+  setTimeout(() => gistBackup(), 500);
+}
+
+function disconnectGithub() {
+  if (!confirm('Odpojit GitHub a smazat zálohu?')) return;
+  localStorage.removeItem('vault_github_token');
+  localStorage.removeItem('vault_gist_id');
+  localStorage.removeItem('vault_last_backup');
+  closeModal();
+  renderMain();
+}
+
+// ============================================================
 // SERVICE WORKER
 // ============================================================
 if ('serviceWorker' in navigator) {
@@ -1538,7 +1882,8 @@ if ('serviceWorker' in navigator) {
 // ============================================================
 // INIT
 // ============================================================
-renderMain();
+renderMain();   // render app content behind pin screen
+initPinLock();  // show pin screen on top (setup or unlock)
 </script>
 </body>
 </html>
