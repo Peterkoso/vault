@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node gen-icons.js)"
+      "Bash(node gen-icons.js)",
+      "Bash(ls:*)"
     ]
   }
 }

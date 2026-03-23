@@ -185,6 +185,24 @@ canvas { max-width: 100%; }
 
 /* Empty state */
 .empty { text-align: center; color: var(--text2); font-size: 12px; padding: 30px; letter-spacing: 1px; }
+
+/* Transfer item */
+.transfer-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); opacity: 0.65; }
+.transfer-item:last-child { border-bottom: none; }
+.transfer-icon { font-size: 18px; width: 30px; text-align: center; }
+.transfer-info { flex: 1; }
+.transfer-name { font-size: 12px; color: var(--text2); }
+.transfer-meta { font-size: 10px; color: var(--text2); margin-top: 1px; }
+.transfer-amount { font-size: 13px; color: var(--text2); font-weight: bold; }
+
+/* Action picker */
+.action-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; }
+.action-pick-btn { background: var(--card); border: 1.5px solid var(--border); border-radius: 14px; padding: 20px 10px; font-family: inherit; font-size: 12px; letter-spacing: 1px; color: var(--text); cursor: pointer; text-align: center; }
+.action-pick-btn:active { background: var(--header); }
+.action-pick-btn .pick-icon { font-size: 28px; display: block; margin-bottom: 8px; }
+
+/* Category filter select */
+#cat-filter-select { width: 100%; padding: 8px 12px; background: var(--card); border: 1.5px solid var(--border); border-radius: 10px; font-family: inherit; font-size: 12px; color: var(--text); margin-bottom: 12px; appearance: none; }
 </style>
 </head>
 <body>
@@ -194,7 +212,7 @@ canvas { max-width: 100%; }
       <h1>🔒 Vault</h1>
       <div class="subtitle">OSOBNÍ FINANCE</div>
     </div>
-    <button id="add-btn" onclick="openAddExpense()">+</button>
+    <button id="add-btn" onclick="openAddPicker()">+</button>
   </div>
   <div id="main"></div>
   <nav id="nav">
@@ -243,6 +261,7 @@ function loadData() {
       { id: 'c9', name: 'Ostatní', emoji: '📦', color: '#95A5A6' }
     ]),
     expenses: STORE.get('expenses', []),
+    transfers: STORE.get('transfers', []),
     deadlines: STORE.get('deadlines', []),
     planned: STORE.get('planned', []),
     paycheck: STORE.get('paycheck', { expectedDate: '', actualDate: '', amount: 0, history: [] }),
@@ -258,6 +277,7 @@ function saveData(data) {
   STORE.set('accounts', data.accounts);
   STORE.set('categories', data.categories);
   STORE.set('expenses', data.expenses);
+  STORE.set('transfers', data.transfers);
   STORE.set('deadlines', data.deadlines);
   STORE.set('planned', data.planned);
   STORE.set('paycheck', data.paycheck);
@@ -415,8 +435,12 @@ function renderHome() {
     paycheckOverdue = daysUntil(pc.expectedDate) < 0;
   }
 
-  // Recent expenses (last 5)
-  const recent = [...D.expenses].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).slice(0, 5);
+  // Recent activity: last 5 expenses + transfers merged by date
+  const recentExps = D.expenses.map(e => ({ ...e, _type: 'expense' }));
+  const recentTrs  = D.transfers.map(t => ({ ...t, _type: 'transfer' }));
+  const recent = [...recentExps, ...recentTrs]
+    .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
+    .slice(0, 5);
 
   let html = '';
 
@@ -532,11 +556,11 @@ function renderHome() {
     </div>`;
   }
 
-  // Recent expenses
+  // Recent activity
   if (recent.length) {
     html += `<div class="card">
-      <div class="card-title">POSLEDNÍ VÝDAJE</div>
-      ${recent.map(e => renderExpItem(e)).join('')}
+      <div class="card-title">NEDÁVNÁ AKTIVITA</div>
+      ${recent.map(item => item._type === 'transfer' ? renderTransferItem(item) : renderExpItem(item)).join('')}
     </div>`;
   }
 
@@ -560,22 +584,54 @@ function renderExpItem(e) {
   </div>`;
 }
 
+function renderTransferItem(t) {
+  const from = D.accounts.find(a => a.id === t.fromAccountId);
+  const to   = D.accounts.find(a => a.id === t.toAccountId);
+  return `<div class="transfer-item" onclick="openEditTransfer('${t.id}')">
+    <div class="transfer-icon">↔️</div>
+    <div class="transfer-info">
+      <div class="transfer-name">${from?.name || '?'} → ${to?.name || '?'}${t.note ? ' · '+t.note : ''}</div>
+      <div class="transfer-meta">${fmtDate(t.date)}</div>
+    </div>
+    <div class="transfer-amount">${fmtMoney(t.amount)}</div>
+  </div>`;
+}
+
 // ============================================================
 // EXPENSES TAB
 // ============================================================
 let expFilter = 'cycle';
 let expMonth = today().slice(0, 7);
+let expCatFilter = '';
 
 function renderExpenses() {
   const months = [...new Set(D.expenses.map(e => e.date.slice(0, 7)))].sort().reverse();
 
+  // Base expense range filter
   let exps;
   if (expFilter === 'cycle') {
     exps = getExpensesInCycle();
   } else {
     exps = D.expenses.filter(e => e.date.slice(0, 7) === expMonth);
   }
+
+  // Category filter
+  if (expCatFilter) {
+    exps = exps.filter(e => e.categoryId === expCatFilter);
+  }
   exps = [...exps].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+
+  // Transfers in same period (only show when no category filter)
+  let transfers = [];
+  if (!expCatFilter) {
+    if (expFilter === 'cycle') {
+      const { start, end } = getCycleRange();
+      transfers = D.transfers.filter(t => t.date >= start && t.date < end);
+    } else {
+      transfers = D.transfers.filter(t => t.date.slice(0, 7) === expMonth);
+    }
+    transfers = [...transfers].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  }
 
   let html = `<div id="filter-toggle">
     <button class="${expFilter==='cycle'?'active':''}" onclick="setExpFilter('cycle')">VÝPLATA→VÝPLATA</button>
@@ -589,25 +645,42 @@ function renderExpenses() {
     </select>`;
   }
 
+  // Category filter dropdown
+  html += `<select id="cat-filter-select" onchange="setCatFilter(this.value)">
+    <option value="">Všechny kategorie</option>
+    ${D.categories.map(c => `<option value="${c.id}" ${c.id===expCatFilter?'selected':''}>${c.emoji} ${c.name}</option>`).join('')}
+  </select>`;
+
   const total = exps.reduce((s, e) => s + e.amount, 0);
+  const label = expCatFilter
+    ? `${exps.length} výdajů · ${D.categories.find(c=>c.id===expCatFilter)?.name || ''}`
+    : `${exps.length} výdajů${transfers.length ? ' · ' + transfers.length + ' převodů' : ''}`;
+
   html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 2px">
-    <span style="font-size:10px;letter-spacing:2px;color:var(--text2)">${exps.length} VÝDAJŮ</span>
+    <span style="font-size:10px;letter-spacing:1px;color:var(--text2)">${label.toUpperCase()}</span>
     <span style="font-family:Georgia,serif;font-size:18px;color:var(--accent2)">${fmtMoney(total)}</span>
   </div>`;
 
-  if (!exps.length) {
-    html += '<div class="empty">Žádné výdaje v tomto období</div>';
+  if (!exps.length && !transfers.length) {
+    html += '<div class="empty">Žádné záznamy v tomto období</div>';
   } else {
+    // Merge and sort expenses + transfers by date
+    const merged = [
+      ...exps.map(e => ({ ...e, _type: 'expense' })),
+      ...transfers.map(t => ({ ...t, _type: 'transfer' }))
+    ].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+
     html += `<div class="card" style="padding:8px 14px">
-      ${exps.map(e => renderExpItem(e)).join('')}
+      ${merged.map(item => item._type === 'transfer' ? renderTransferItem(item) : renderExpItem(item)).join('')}
     </div>`;
   }
   return html;
 }
 
 function bindExpenses() {}
-function setExpFilter(f) { expFilter = f; document.getElementById('main').innerHTML = renderExpenses(); bindExpenses(); }
-function setExpMonth(m) { expMonth = m; document.getElementById('main').innerHTML = renderExpenses(); bindExpenses(); }
+function setExpFilter(f) { expFilter = f; document.getElementById('main').innerHTML = renderExpenses(); }
+function setExpMonth(m) { expMonth = m; document.getElementById('main').innerHTML = renderExpenses(); }
+function setCatFilter(c) { expCatFilter = c; document.getElementById('main').innerHTML = renderExpenses(); }
 
 // ============================================================
 // CHARTS TAB
@@ -1144,6 +1217,24 @@ function openAddAccount() {
 function openEditAccount(id) {
   const a = D.accounts.find(x => x.id === id);
   if (!a) return;
+  const accTransfers = D.transfers
+    .filter(t => t.fromAccountId === id || t.toAccountId === id)
+    .sort((a2, b) => b.date.localeCompare(a2.date))
+    .slice(0, 5);
+  const transferHistory = accTransfers.length ? `
+    <div style="margin-top:16px">
+      <div class="card-title" style="margin-bottom:8px">PŘEVODY</div>
+      ${accTransfers.map(t => {
+        const other = t.fromAccountId === id
+          ? D.accounts.find(ac => ac.id === t.toAccountId)
+          : D.accounts.find(ac => ac.id === t.fromAccountId);
+        const dir = t.fromAccountId === id ? '→' : '←';
+        return `<div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid var(--border)">
+          <span>${fmtDate(t.date)} ${dir} ${other?.name || '?'}</span>
+          <span style="color:${t.fromAccountId===id?'var(--red)':'var(--green)'}">${t.fromAccountId===id?'−':'+'}${fmtMoney(t.amount)}</span>
+        </div>`;
+      }).join('')}
+    </div>` : '';
   openModal(`
     <button class="modal-close" onclick="closeModal()">✕</button>
     <div class="modal-title">Upravit účet</div>
@@ -1162,6 +1253,7 @@ function openEditAccount(id) {
     </div>
     <button class="btn-primary" onclick="saveAccount('${id}')">Uložit změny</button>
     <button class="btn-danger" onclick="deleteAccount('${id}')">Smazat účet</button>
+    ${transferHistory}
   `);
 }
 
@@ -1301,6 +1393,101 @@ function savePlanned(id) {
 function deletePlanned(id) {
   if (!confirm('Smazat plánovaný výdaj?')) return;
   D.planned = D.planned.filter(p => p.id !== id);
+  saveData(D); closeModal(); renderMain();
+}
+
+// --- ACTION PICKER ---
+function openAddPicker() {
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">Přidat záznam</div>
+    <div class="action-picker">
+      <button class="action-pick-btn" onclick="closeModal();openAddExpense()">
+        <span class="pick-icon">💸</span>VÝDAJ
+      </button>
+      <button class="action-pick-btn" onclick="closeModal();openAddTransfer()">
+        <span class="pick-icon">↔️</span>PŘEVOD
+      </button>
+    </div>
+  `);
+}
+
+// --- TRANSFERS ---
+function openAddTransfer() {
+  const accOptions = D.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">↔️ Převod</div>
+    <div class="form-group"><label>Z ÚČTU</label><select id="tr-from">${accOptions}</select></div>
+    <div class="form-group"><label>NA ÚČET</label><select id="tr-to">${accOptions}</select></div>
+    <div class="form-group"><label>ČÁSTKA</label><input class="big" type="number" inputmode="decimal" id="tr-amount" placeholder="0"></div>
+    <div class="form-group"><label>DATUM</label><input type="date" id="tr-date" value="${today()}"></div>
+    <div class="form-group"><label>POZNÁMKA</label><textarea id="tr-note" placeholder="volitelně..."></textarea></div>
+    <button class="btn-primary" onclick="saveTransfer(null)">Uložit převod</button>
+  `);
+}
+
+function openEditTransfer(id) {
+  const t = D.transfers.find(x => x.id === id);
+  if (!t) return;
+  const accOptions = (sel) => D.accounts.map(a => `<option value="${a.id}" ${a.id===sel?'selected':''}>${a.name}</option>`).join('');
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">↔️ Upravit převod</div>
+    <div class="form-group"><label>Z ÚČTU</label><select id="tr-from">${accOptions(t.fromAccountId)}</select></div>
+    <div class="form-group"><label>NA ÚČET</label><select id="tr-to">${accOptions(t.toAccountId)}</select></div>
+    <div class="form-group"><label>ČÁSTKA</label><input class="big" type="number" inputmode="decimal" id="tr-amount" value="${t.amount}"></div>
+    <div class="form-group"><label>DATUM</label><input type="date" id="tr-date" value="${t.date}"></div>
+    <div class="form-group"><label>POZNÁMKA</label><textarea id="tr-note">${t.note||''}</textarea></div>
+    <button class="btn-primary" onclick="saveTransfer('${id}')">Uložit změny</button>
+    <button class="btn-danger" onclick="deleteTransfer('${id}')">Smazat převod</button>
+  `);
+}
+
+function saveTransfer(id) {
+  const fromAccountId = document.getElementById('tr-from').value;
+  const toAccountId   = document.getElementById('tr-to').value;
+  const amount        = parseFloat(document.getElementById('tr-amount').value);
+  const date          = document.getElementById('tr-date').value;
+  const note          = document.getElementById('tr-note').value.trim();
+
+  if (!amount || !date) { alert('Vyplňte částku a datum'); return; }
+  if (fromAccountId === toAccountId) { alert('Zdrojový a cílový účet musí být různé'); return; }
+
+  if (id) {
+    // Reverse old balance effect
+    const old = D.transfers.find(t => t.id === id);
+    if (old) {
+      const oldFrom = D.accounts.find(a => a.id === old.fromAccountId);
+      const oldTo   = D.accounts.find(a => a.id === old.toAccountId);
+      if (oldFrom) oldFrom.balance += old.amount;
+      if (oldTo)   oldTo.balance   -= old.amount;
+    }
+    const i = D.transfers.findIndex(t => t.id === id);
+    if (i >= 0) D.transfers[i] = { ...D.transfers[i], fromAccountId, toAccountId, amount, date, note };
+  } else {
+    D.transfers.push({ id: uid(), fromAccountId, toAccountId, amount, date, note });
+  }
+
+  // Apply new balance effect
+  const from = D.accounts.find(a => a.id === fromAccountId);
+  const to   = D.accounts.find(a => a.id === toAccountId);
+  if (from) from.balance -= amount;
+  if (to)   to.balance   += amount;
+
+  saveData(D); closeModal(); renderMain();
+}
+
+function deleteTransfer(id) {
+  if (!confirm('Smazat tento převod?')) return;
+  const t = D.transfers.find(x => x.id === id);
+  if (t) {
+    const from = D.accounts.find(a => a.id === t.fromAccountId);
+    const to   = D.accounts.find(a => a.id === t.toAccountId);
+    if (from) from.balance += t.amount;
+    if (to)   to.balance   -= t.amount;
+  }
+  D.transfers = D.transfers.filter(x => x.id !== id);
   saveData(D); closeModal(); renderMain();
 }
 
