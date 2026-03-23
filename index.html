@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Vault">
+<meta name="theme-color" content="#EAD8BC">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Vault</title>
+<style>
+:root {
+  --bg: #F2E8D5;
+  --card: #FBF4E4;
+  --header: #EAD8BC;
+  --border: #C8A870;
+  --accent: #C4882A;
+  --accent2: #8B5E1A;
+  --text: #3A2A10;
+  --text2: #7A5C2A;
+  --red: #C0392B;
+  --amber: #E67E22;
+  --green: #27AE60;
+  --radius: 16px;
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Courier New', Courier, monospace; overflow: hidden; }
+#app { display: flex; flex-direction: column; height: 100%; height: 100dvh; }
+
+/* Header */
+#header { background: var(--header); border-bottom: 1.5px solid var(--border); padding: 12px 16px 10px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+#header h1 { font-family: Georgia, serif; font-size: 22px; font-weight: bold; color: var(--accent2); letter-spacing: 1px; }
+#header .subtitle { font-size: 9px; letter-spacing: 3px; color: var(--text2); margin-top: 1px; }
+#header-left { display: flex; flex-direction: column; }
+#add-btn { background: var(--accent); color: #fff; border: none; border-radius: 50%; width: 38px; height: 38px; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow); }
+
+/* Main scroll area */
+#main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 12px 80px; }
+
+/* Bottom nav */
+#nav { background: var(--header); border-top: 1.5px solid var(--border); display: flex; flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom); }
+.nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px 6px; border: none; background: none; cursor: pointer; color: var(--text2); font-size: 9px; letter-spacing: 0.5px; gap: 3px; font-family: inherit; }
+.nav-btn .icon { font-size: 20px; }
+.nav-btn.active { color: var(--accent); }
+.nav-btn.active .icon { filter: drop-shadow(0 0 2px var(--accent)); }
+
+/* Cards */
+.card { background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; box-shadow: var(--shadow); }
+.card-title { font-size: 10px; letter-spacing: 2px; color: var(--text2); margin-bottom: 10px; text-transform: uppercase; }
+.card h2 { font-family: Georgia, serif; font-size: 28px; color: var(--accent2); }
+
+/* Cycle bar */
+#cycle-bar { background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; }
+#cycle-bar .cycle-label { font-size: 10px; letter-spacing: 2px; color: var(--text2); display: flex; justify-content: space-between; margin-bottom: 8px; }
+#cycle-progress { background: var(--header); border-radius: 6px; height: 8px; overflow: hidden; margin-bottom: 8px; }
+#cycle-progress-fill { background: var(--accent); height: 100%; border-radius: 6px; transition: width 0.4s; }
+#cycle-bar .cycle-info { display: flex; justify-content: space-between; font-size: 11px; color: var(--text); }
+
+/* Volné peníze */
+.vp-amount { font-family: Georgia, serif; font-size: 36px; color: var(--accent2); margin: 4px 0; }
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.stat-item { background: var(--header); border-radius: 10px; padding: 8px 10px; }
+.stat-label { font-size: 9px; letter-spacing: 1px; color: var(--text2); }
+.stat-val { font-size: 14px; font-weight: bold; color: var(--text); margin-top: 2px; }
+
+/* Deadline items */
+.dl-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.dl-item:last-child { border-bottom: none; }
+.dl-emoji { font-size: 22px; width: 32px; text-align: center; }
+.dl-info { flex: 1; }
+.dl-name { font-size: 13px; font-weight: bold; color: var(--text); }
+.dl-date { font-size: 10px; color: var(--text2); margin-top: 2px; }
+.dl-amount { font-size: 14px; font-weight: bold; }
+.badge { font-size: 9px; letter-spacing: 1px; padding: 2px 6px; border-radius: 10px; margin-left: 6px; }
+.badge-red { background: #FADBD8; color: var(--red); }
+.badge-amber { background: #FDEBD0; color: var(--amber); }
+.badge-green { background: #D5F5E3; color: var(--green); }
+
+/* Planned */
+.pl-item { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1.5px dashed var(--border); border-radius: 12px; margin-bottom: 8px; }
+.pl-info { flex: 1; }
+.pl-name { font-size: 13px; font-weight: bold; }
+.pl-date { font-size: 10px; color: var(--text2); margin-top: 2px; }
+.pl-amount { font-size: 14px; color: var(--amber); font-weight: bold; }
+
+/* Savings milestones */
+.milestone { margin-bottom: 12px; }
+.milestone-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+.milestone-bar { background: var(--header); border-radius: 6px; height: 10px; overflow: hidden; }
+.milestone-fill { background: var(--green); height: 100%; border-radius: 6px; transition: width 0.4s; }
+
+/* Recent expenses */
+.exp-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.exp-item:last-child { border-bottom: none; }
+.exp-cat { font-size: 20px; width: 30px; text-align: center; }
+.exp-info { flex: 1; }
+.exp-name { font-size: 13px; font-weight: bold; }
+.exp-meta { font-size: 10px; color: var(--text2); margin-top: 1px; }
+.exp-amount { font-size: 14px; font-weight: bold; }
+.exp-amount.from-ziti { color: var(--red); }
+.exp-amount.large { color: var(--amber); }
+
+/* Alert card */
+.alert-card { background: #FDEBD0; border: 1.5px solid var(--amber); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 10px; }
+.alert-card .alert-title { font-size: 10px; letter-spacing: 2px; color: var(--amber); margin-bottom: 6px; }
+.alert-card .alert-text { font-size: 12px; color: var(--text); }
+
+/* Výdaje tab */
+#filter-toggle { display: flex; background: var(--header); border-radius: 20px; padding: 3px; margin-bottom: 12px; }
+#filter-toggle button { flex: 1; border: none; background: none; padding: 7px 10px; border-radius: 16px; cursor: pointer; font-size: 11px; font-family: inherit; letter-spacing: 1px; color: var(--text2); }
+#filter-toggle button.active { background: var(--accent); color: #fff; }
+#month-select { width: 100%; padding: 8px 12px; background: var(--card); border: 1.5px solid var(--border); border-radius: 10px; font-family: inherit; font-size: 12px; color: var(--text); margin-bottom: 12px; appearance: none; }
+
+/* Charts */
+canvas { max-width: 100%; }
+.chart-wrap { margin-bottom: 8px; }
+
+/* Kalkulačka */
+#calc-input { font-family: Georgia, serif; font-size: 40px; color: var(--accent2); background: none; border: none; border-bottom: 2px solid var(--border); width: 100%; text-align: right; padding: 8px 0; outline: none; margin-bottom: 6px; }
+.calc-hint { font-size: 10px; letter-spacing: 1px; color: var(--text2); text-align: right; margin-bottom: 14px; }
+.calc-result { border-radius: var(--radius); padding: 16px; text-align: center; margin-bottom: 12px; }
+.calc-result.ok { background: #D5F5E3; border: 1.5px solid var(--green); }
+.calc-result.warn { background: #FDEBD0; border: 1.5px solid var(--amber); }
+.calc-result.no { background: #FADBD8; border: 1.5px solid var(--red); }
+.calc-icon { font-size: 32px; margin-bottom: 6px; }
+.calc-msg { font-size: 13px; }
+.calc-table { width: 100%; font-size: 12px; border-collapse: collapse; }
+.calc-table td { padding: 7px 6px; border-bottom: 1px solid var(--border); }
+.calc-table td:last-child { text-align: right; font-weight: bold; }
+
+/* Nastavení */
+.settings-section { margin-bottom: 16px; }
+.settings-section-title { font-size: 10px; letter-spacing: 3px; color: var(--text2); margin-bottom: 8px; text-transform: uppercase; padding-left: 4px; }
+.settings-item { background: var(--card); border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; }
+.settings-item label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 4px; }
+.settings-item input[type=date], .settings-item input[type=number], .settings-item input[type=text] { background: none; border: none; font-family: inherit; font-size: 13px; color: var(--text); outline: none; width: 100%; }
+.settings-item .si-left { flex: 1; }
+.cat-item { display: flex; align-items: center; gap: 10px; }
+.cat-emoji { font-size: 20px; }
+.cat-info { flex: 1; font-size: 13px; }
+.cat-count { font-size: 10px; color: var(--text2); margin-top: 1px; }
+.edit-btn { background: var(--header); border: 1.5px solid var(--border); border-radius: 8px; padding: 4px 10px; font-size: 11px; font-family: inherit; cursor: pointer; color: var(--text2); }
+.add-btn-full { width: 100%; background: none; border: 1.5px dashed var(--border); border-radius: 12px; padding: 12px; font-family: inherit; font-size: 12px; color: var(--accent); cursor: pointer; letter-spacing: 1px; }
+
+/* Modal */
+#modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: flex-end; }
+#modal-overlay.open { display: flex; }
+#modal { background: var(--bg); border-radius: 24px 24px 0 0; width: 100%; max-height: 90vh; overflow-y: auto; padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); }
+.modal-title { font-family: Georgia, serif; font-size: 20px; color: var(--accent2); margin-bottom: 16px; }
+.modal-close { float: right; background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text2); margin-top: -2px; }
+.form-group { margin-bottom: 12px; }
+.form-group label { font-size: 10px; letter-spacing: 2px; color: var(--text2); display: block; margin-bottom: 6px; text-transform: uppercase; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; background: var(--card); border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 14px; color: var(--text); outline: none; appearance: none; }
+.form-group input.big { font-family: Georgia, serif; font-size: 28px; text-align: right; }
+.form-group textarea { resize: none; height: 60px; }
+.btn-primary { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: 12px; padding: 14px; font-family: inherit; font-size: 14px; letter-spacing: 1px; cursor: pointer; margin-top: 8px; }
+.btn-secondary { width: 100%; background: none; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 12px; padding: 12px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 6px; }
+.btn-danger { width: 100%; background: none; color: var(--red); border: 1.5px solid var(--red); border-radius: 12px; padding: 12px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 6px; }
+
+/* Emoji picker */
+.emoji-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 8px; }
+.emoji-opt { background: var(--card); border: 1.5px solid var(--border); border-radius: 10px; padding: 8px; font-size: 22px; text-align: center; cursor: pointer; }
+.emoji-opt.selected { border-color: var(--accent); background: #FDEBD0; }
+
+/* Paycheck button */
+.paycheck-btn { width: 100%; background: none; border: 1.5px solid var(--green); border-radius: 12px; padding: 12px; font-family: inherit; font-size: 12px; color: var(--green); cursor: pointer; letter-spacing: 1px; margin-bottom: 10px; }
+.paycheck-btn.overdue { border-color: var(--red); color: var(--red); }
+
+/* Donut chart */
+.donut-legend { margin-top: 10px; }
+.legend-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 11px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* Toggle */
+.toggle-wrap { display: flex; align-items: center; justify-content: space-between; }
+.toggle { position: relative; width: 44px; height: 24px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; inset: 0; background: var(--header); border-radius: 12px; border: 1.5px solid var(--border); cursor: pointer; transition: 0.2s; }
+.toggle-slider:before { content: ''; position: absolute; width: 18px; height: 18px; left: 2px; top: 1px; background: var(--border); border-radius: 50%; transition: 0.2s; }
+.toggle input:checked + .toggle-slider { background: var(--accent); border-color: var(--accent); }
+.toggle input:checked + .toggle-slider:before { transform: translateX(20px); background: #fff; }
+
+/* Empty state */
+.empty { text-align: center; color: var(--text2); font-size: 12px; padding: 30px; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div id="header-left">
+      <h1>🔒 Vault</h1>
+      <div class="subtitle">OSOBNÍ FINANCE</div>
+    </div>
+    <button id="add-btn" onclick="openAddExpense()">+</button>
+  </div>
+  <div id="main"></div>
+  <nav id="nav">
+    <button class="nav-btn active" onclick="showTab('home')" id="nav-home"><span class="icon">🏠</span>PŘEHLED</button>
+    <button class="nav-btn" onclick="showTab('expenses')" id="nav-expenses"><span class="icon">📋</span>VÝDAJE</button>
+    <button class="nav-btn" onclick="showTab('charts')" id="nav-charts"><span class="icon">📊</span>GRAFY</button>
+    <button class="nav-btn" onclick="showTab('calc')" id="nav-calc"><span class="icon">🔢</span>KALKUL.</button>
+    <button class="nav-btn" onclick="showTab('settings')" id="nav-settings"><span class="icon">⚙️</span>NASTAVENÍ</button>
+  </nav>
+</div>
+
+<!-- Add Expense Modal -->
+<div id="modal-overlay">
+  <div id="modal" id="modal-inner">
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DATA & STORAGE
+// ============================================================
+const STORE = {
+  get(k, def) { try { const v = localStorage.getItem('vault_'+k); return v ? JSON.parse(v) : def; } catch { return def; } },
+  set(k, v) { localStorage.setItem('vault_'+k, JSON.stringify(v)); }
+};
+
+function loadData() {
+  return {
+    accounts: STORE.get('accounts', [
+      { id: 'a1', name: 'Žití', bank: '', balance: 0, includeInCalc: true, isReserve: false },
+      { id: 'a2', name: 'Trvalé výdaje', bank: '', balance: 0, includeInCalc: false, isReserve: false },
+      { id: 'a3', name: 'Příjmový', bank: '', balance: 0, includeInCalc: false, isReserve: false },
+      { id: 'a4', name: 'Fio', bank: 'Fio', balance: 0, includeInCalc: false, isReserve: false },
+      { id: 'a5', name: 'Soos', bank: '', balance: 0, includeInCalc: false, isReserve: true }
+    ]),
+    categories: STORE.get('categories', [
+      { id: 'c1', name: 'Jídlo', emoji: '🛒', color: '#27AE60' },
+      { id: 'c2', name: 'Hry & zábava', emoji: '🎮', color: '#8E44AD' },
+      { id: 'c3', name: 'Jízdné', emoji: '🚇', color: '#2980B9' },
+      { id: 'c4', name: 'Kocour', emoji: '🐱', color: '#E67E22' },
+      { id: 'c5', name: 'AI & předplatná', emoji: '🤖', color: '#1ABC9C' },
+      { id: 'c6', name: 'Dárky & charita', emoji: '🎁', color: '#E91E63' },
+      { id: 'c7', name: 'Bydlení', emoji: '🏠', color: '#795548' },
+      { id: 'c8', name: 'Energie', emoji: '⚡', color: '#F39C12' },
+      { id: 'c9', name: 'Ostatní', emoji: '📦', color: '#95A5A6' }
+    ]),
+    expenses: STORE.get('expenses', []),
+    deadlines: STORE.get('deadlines', []),
+    planned: STORE.get('planned', []),
+    paycheck: STORE.get('paycheck', { expectedDate: '', actualDate: '', amount: 0, history: [] }),
+    savingsMilestones: STORE.get('savingsMilestones', [
+      { amount: 30000, label: 'Záchranná síť', emoji: '🌱' },
+      { amount: 60000, label: 'Polštář', emoji: '🛋️' },
+      { amount: 100000, label: 'Svoboda', emoji: '🦅' }
+    ])
+  };
+}
+
+function saveData(data) {
+  STORE.set('accounts', data.accounts);
+  STORE.set('categories', data.categories);
+  STORE.set('expenses', data.expenses);
+  STORE.set('deadlines', data.deadlines);
+  STORE.set('planned', data.planned);
+  STORE.set('paycheck', data.paycheck);
+  STORE.set('savingsMilestones', data.savingsMilestones);
+}
+
+let D = loadData();
+
+// ============================================================
+// HELPERS
+// ============================================================
+function fmtMoney(n) {
+  return new Intl.NumberFormat('cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n) + ' Kč';
+}
+function fmtDate(s) {
+  if (!s) return '';
+  const d = new Date(s + 'T00:00:00');
+  return d.toLocaleDateString('cs-CZ', { day: 'numeric', month: 'short' });
+}
+function today() { return new Date().toISOString().slice(0, 10); }
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const diff = new Date(dateStr + 'T00:00:00') - new Date(today() + 'T00:00:00');
+  return Math.ceil(diff / 86400000);
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+function getCycleRange() {
+  const pc = D.paycheck;
+  let start, end;
+  const now = today();
+
+  if (pc.actualDate) {
+    start = pc.actualDate;
+  } else {
+    // fallback: beginning of month
+    start = now.slice(0, 8) + '01';
+  }
+
+  if (pc.expectedDate) {
+    // next expected date from start
+    const sDate = new Date(start + 'T00:00:00');
+    let eDate = new Date(pc.expectedDate + 'T00:00:00');
+    // if expected is before start, add months until it's after start
+    while (eDate <= sDate) {
+      eDate.setMonth(eDate.getMonth() + 1);
+    }
+    end = eDate.toISOString().slice(0, 10);
+  } else {
+    const d = new Date(start + 'T00:00:00');
+    d.setMonth(d.getMonth() + 1);
+    end = d.toISOString().slice(0, 10);
+  }
+  return { start, end };
+}
+
+function getExpensesInCycle() {
+  const { start, end } = getCycleRange();
+  return D.expenses.filter(e => e.date >= start && e.date < end);
+}
+
+function getCycleDaysRemaining() {
+  const { end } = getCycleRange();
+  return Math.max(0, daysUntil(end));
+}
+
+function getCycleTotalDays() {
+  const { start, end } = getCycleRange();
+  const diff = new Date(end + 'T00:00:00') - new Date(start + 'T00:00:00');
+  return Math.ceil(diff / 86400000);
+}
+
+function getZitiAccount() { return D.accounts.find(a => a.name === 'Žití') || D.accounts[0]; }
+function getSoosAccount() { return D.accounts.find(a => a.isReserve); }
+
+function getCycleTotalSpent() {
+  return getExpensesInCycle().reduce((s, e) => s + e.amount, 0);
+}
+
+function getCycleSpentByCategory() {
+  const exps = getExpensesInCycle();
+  const map = {};
+  for (const e of exps) {
+    map[e.categoryId] = (map[e.categoryId] || 0) + e.amount;
+  }
+  return map;
+}
+
+function getAlertCategories() {
+  const cycleMap = getCycleSpentByCategory();
+  const allExps = D.expenses;
+  if (!allExps.length) return [];
+  const alerts = [];
+  for (const [cid, total] of Object.entries(cycleMap)) {
+    // compute average from past cycles (all expenses except current)
+    const { start } = getCycleRange();
+    const pastExps = allExps.filter(e => e.date < start && e.categoryId === cid);
+    if (pastExps.length === 0) continue;
+    const pastTotal = pastExps.reduce((s, e) => s + e.amount, 0);
+    const pastAvg = pastTotal / 3; // rough 3-cycle avg
+    if (total > pastAvg * 2 && pastAvg > 0) {
+      const cat = D.categories.find(c => c.id === cid);
+      alerts.push({ cat, total, avg: pastAvg });
+    }
+  }
+  return alerts;
+}
+
+// ============================================================
+// TABS
+// ============================================================
+let currentTab = 'home';
+
+function showTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('nav-' + tab).classList.add('active');
+  renderMain();
+}
+
+function renderMain() {
+  const el = document.getElementById('main');
+  el.scrollTop = 0;
+  switch (currentTab) {
+    case 'home': el.innerHTML = renderHome(); bindHome(); break;
+    case 'expenses': el.innerHTML = renderExpenses(); bindExpenses(); break;
+    case 'charts': el.innerHTML = renderCharts(); drawCharts(); break;
+    case 'calc': el.innerHTML = renderCalc(); bindCalc(); break;
+    case 'settings': el.innerHTML = renderSettings(); bindSettings(); break;
+  }
+}
+
+// ============================================================
+// HOME TAB
+// ============================================================
+function renderHome() {
+  const { start, end } = getCycleRange();
+  const remaining = getCycleDaysRemaining();
+  const totalDays = getCycleTotalDays();
+  const progress = Math.min(1, 1 - remaining / totalDays);
+  const ziti = getZitiAccount();
+  const soos = getSoosAccount();
+  const totalSpent = getCycleTotalSpent();
+  const alerts = getAlertCategories();
+  const pc = D.paycheck;
+
+  // Upcoming deadlines
+  const deadlines = [...D.deadlines]
+    .map(d => ({ ...d, days: daysUntil(d.dueDate) }))
+    .sort((a, b) => a.days - b.days);
+
+  // Paycheck overdue?
+  let paycheckOverdue = false;
+  if (pc.expectedDate && !pc.actualDate) {
+    paycheckOverdue = daysUntil(pc.expectedDate) < 0;
+  }
+
+  // Recent expenses (last 5)
+  const recent = [...D.expenses].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).slice(0, 5);
+
+  let html = '';
+
+  // Paycheck overdue warning
+  if (paycheckOverdue) {
+    html += `<div class="alert-card" style="border-color:var(--red);background:#FADBD8;">
+      <div class="alert-title" style="color:var(--red);">⚠️ VÝPLATA PO TERMÍNU</div>
+      <div class="alert-text">Očekávaná výplata ${fmtDate(pc.expectedDate)} ještě nedorazila.</div>
+    </div>`;
+  }
+
+  // Category alerts
+  if (alerts.length) {
+    html += `<div class="alert-card">
+      <div class="alert-title">⚠️ UPOZORNĚNÍ</div>
+      ${alerts.map(a => `<div class="alert-text">${a.cat?.emoji || '📦'} ${a.cat?.name || ''}: ${fmtMoney(a.total)} (2× průměr)</div>`).join('')}
+    </div>`;
+  }
+
+  // Cycle bar
+  html += `<div id="cycle-bar" class="card">
+    <div class="cycle-label"><span>VÝPLATA → VÝPLATA</span><span>${remaining} dní zbývá</span></div>
+    <div id="cycle-progress"><div id="cycle-progress-fill" style="width:${Math.round(progress*100)}%"></div></div>
+    <div class="cycle-info">
+      <span>${fmtDate(start)}</span>
+      <span style="font-weight:bold;color:var(--accent)">${fmtMoney(pc.amount || 0)}</span>
+      <span>${fmtDate(end)}</span>
+    </div>
+  </div>`;
+
+  // Paycheck button
+  if (!pc.actualDate || paycheckOverdue) {
+    html += `<button class="paycheck-btn${paycheckOverdue ? ' overdue' : ''}" onclick="openPaycheckModal()">
+      ${paycheckOverdue ? '⚠️' : '💰'} ${pc.expectedDate ? 'Očekávám výplatu ' + fmtDate(pc.expectedDate) : 'Nastavit výplatu'}
+    </button>`;
+  } else {
+    html += `<button class="paycheck-btn" onclick="openPaycheckModal()">
+      ✓ Výplata přijata ${fmtDate(pc.actualDate)} — ${fmtMoney(pc.amount)}
+    </button>`;
+  }
+
+  // Volné peníze
+  html += `<div class="card">
+    <div class="card-title">VOLNÉ PENÍZE</div>
+    <div class="vp-amount">${fmtMoney(ziti?.balance || 0)}</div>
+    <div style="font-size:11px;color:var(--text2);margin-top:2px;">zůstatek Žití</div>
+    <div class="stats-grid">
+      <div class="stat-item"><div class="stat-label">UTRACENO</div><div class="stat-val">${fmtMoney(totalSpent)}</div></div>
+      <div class="stat-item"><div class="stat-label">VÝPLATA</div><div class="stat-val">${pc.amount ? fmtMoney(pc.amount) : '—'}</div></div>
+      <div class="stat-item"><div class="stat-label">DO VÝPLATY</div><div class="stat-val">${remaining} dní</div></div>
+      <div class="stat-item"><div class="stat-label">REZERVA</div><div class="stat-val">${fmtMoney(soos?.balance || 0)}</div></div>
+    </div>
+  </div>`;
+
+  // Deadlines
+  if (deadlines.length) {
+    html += `<div class="card">
+      <div class="card-title">BLÍŽÍCÍ SE PLATBY</div>
+      ${deadlines.map(d => {
+        const acc = D.accounts.find(a => a.id === d.accountId);
+        let badge = '';
+        if (d.days <= 3) badge = '<span class="badge badge-red">URGENTNÍ</span>';
+        else if (d.days <= 7) badge = '<span class="badge badge-amber">BRZY</span>';
+        else badge = '<span class="badge badge-green">OK</span>';
+        return `<div class="dl-item" onclick="openEditDeadline('${d.id}')">
+          <div class="dl-emoji">${d.emoji || '📅'}</div>
+          <div class="dl-info"><div class="dl-name">${d.name}${badge}</div><div class="dl-date">${fmtDate(d.dueDate)} · ${acc?.name || ''}</div></div>
+          <div class="dl-amount" style="color:${d.days<=3?'var(--red)':d.days<=7?'var(--amber)':'var(--text)'}">${fmtMoney(d.amount)}</div>
+        </div>`;
+      }).join('')}
+      <button class="add-btn-full" style="margin-top:8px" onclick="openAddDeadline()">+ přidat platbu</button>
+    </div>`;
+  } else {
+    html += `<div class="card">
+      <div class="card-title">BLÍŽÍCÍ SE PLATBY</div>
+      <div class="empty">Žádné nadcházející platby</div>
+      <button class="add-btn-full" onclick="openAddDeadline()">+ přidat platbu</button>
+    </div>`;
+  }
+
+  // Planned
+  if (D.planned.length) {
+    html += `<div class="card">
+      <div class="card-title">PLÁNOVANÉ VÝDAJE</div>
+      ${D.planned.map(p => `<div class="pl-item" onclick="openEditPlanned('${p.id}')">
+        <div style="font-size:22px">${p.emoji || '🎯'}</div>
+        <div class="pl-info"><div class="pl-name">${p.name}</div><div class="pl-date">od ${fmtDate(p.relevantFrom)}${p.note ? ' · '+p.note : ''}</div></div>
+        <div class="pl-amount">${fmtMoney(p.amount)}</div>
+      </div>`).join('')}
+      <button class="add-btn-full" style="margin-top:8px" onclick="openAddPlanned()">+ přidat plánovaný výdaj</button>
+    </div>`;
+  } else {
+    html += `<div class="card">
+      <div class="card-title">PLÁNOVANÉ VÝDAJE</div>
+      <div class="empty">Žádné plánované výdaje</div>
+      <button class="add-btn-full" onclick="openAddPlanned()">+ přidat plánovaný výdaj</button>
+    </div>`;
+  }
+
+  // Rezerva
+  if (soos) {
+    const cur = soos.balance || 0;
+    html += `<div class="card">
+      <div class="card-title">REZERVA</div>
+      <div style="font-family:Georgia,serif;font-size:28px;color:var(--green);margin-bottom:12px">${fmtMoney(cur)}</div>
+      ${D.savingsMilestones.map(m => {
+        const pct = Math.min(100, Math.round((cur / m.amount) * 100));
+        return `<div class="milestone">
+          <div class="milestone-label"><span>${m.emoji} ${m.label}</span><span>${pct}% · ${fmtMoney(m.amount)}</span></div>
+          <div class="milestone-bar"><div class="milestone-fill" style="width:${pct}%"></div></div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  // Recent expenses
+  if (recent.length) {
+    html += `<div class="card">
+      <div class="card-title">POSLEDNÍ VÝDAJE</div>
+      ${recent.map(e => renderExpItem(e)).join('')}
+    </div>`;
+  }
+
+  return html;
+}
+
+function bindHome() {}
+
+function renderExpItem(e) {
+  const cat = D.categories.find(c => c.id === e.categoryId);
+  const acc = D.accounts.find(a => a.id === e.accountId);
+  const isZiti = acc?.name === 'Žití';
+  const isLarge = e.amount >= 1000;
+  return `<div class="exp-item" onclick="openEditExpense('${e.id}')">
+    <div class="exp-cat">${cat?.emoji || '📦'}</div>
+    <div class="exp-info">
+      <div class="exp-name">${e.description}</div>
+      <div class="exp-meta">${fmtDate(e.date)} · ${cat?.name || ''} · ${acc?.name || ''}</div>
+    </div>
+    <div class="exp-amount ${isZiti ? 'from-ziti' : ''} ${isLarge && !isZiti ? 'large' : ''}">${fmtMoney(e.amount)}</div>
+  </div>`;
+}
+
+// ============================================================
+// EXPENSES TAB
+// ============================================================
+let expFilter = 'cycle';
+let expMonth = today().slice(0, 7);
+
+function renderExpenses() {
+  const months = [...new Set(D.expenses.map(e => e.date.slice(0, 7)))].sort().reverse();
+
+  let exps;
+  if (expFilter === 'cycle') {
+    exps = getExpensesInCycle();
+  } else {
+    exps = D.expenses.filter(e => e.date.slice(0, 7) === expMonth);
+  }
+  exps = [...exps].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+
+  let html = `<div id="filter-toggle">
+    <button class="${expFilter==='cycle'?'active':''}" onclick="setExpFilter('cycle')">VÝPLATA→VÝPLATA</button>
+    <button class="${expFilter==='month'?'active':''}" onclick="setExpFilter('month')">MĚSÍC</button>
+  </div>`;
+
+  if (expFilter === 'month') {
+    html += `<select id="month-select" class="month-select" onchange="setExpMonth(this.value)">
+      ${months.map(m => `<option value="${m}" ${m===expMonth?'selected':''}>${m}</option>`).join('')}
+      ${!months.includes(today().slice(0,7)) ? `<option value="${today().slice(0,7)}" ${today().slice(0,7)===expMonth?'selected':''}>${today().slice(0,7)}</option>` : ''}
+    </select>`;
+  }
+
+  const total = exps.reduce((s, e) => s + e.amount, 0);
+  html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 2px">
+    <span style="font-size:10px;letter-spacing:2px;color:var(--text2)">${exps.length} VÝDAJŮ</span>
+    <span style="font-family:Georgia,serif;font-size:18px;color:var(--accent2)">${fmtMoney(total)}</span>
+  </div>`;
+
+  if (!exps.length) {
+    html += '<div class="empty">Žádné výdaje v tomto období</div>';
+  } else {
+    html += `<div class="card" style="padding:8px 14px">
+      ${exps.map(e => renderExpItem(e)).join('')}
+    </div>`;
+  }
+  return html;
+}
+
+function bindExpenses() {}
+function setExpFilter(f) { expFilter = f; document.getElementById('main').innerHTML = renderExpenses(); bindExpenses(); }
+function setExpMonth(m) { expMonth = m; document.getElementById('main').innerHTML = renderExpenses(); bindExpenses(); }
+
+// ============================================================
+// CHARTS TAB
+// ============================================================
+function renderCharts() {
+  return `<div class="card chart-wrap">
+    <div class="card-title">VÝDAJE PO CYKLECH</div>
+    <canvas id="chart-cycles" height="180"></canvas>
+  </div>
+  <div class="card chart-wrap">
+    <div class="card-title">KATEGORIE TENTO CYKLUS</div>
+    <canvas id="chart-donut" height="200"></canvas>
+    <div class="donut-legend" id="donut-legend"></div>
+  </div>
+  <div class="card chart-wrap">
+    <div class="card-title">REZERVA — VÝVOJ</div>
+    <canvas id="chart-savings" height="150"></canvas>
+  </div>`;
+}
+
+function drawCharts() {
+  drawCyclesChart();
+  drawDonutChart();
+  drawSavingsChart();
+}
+
+function drawCyclesChart() {
+  const canvas = document.getElementById('chart-cycles');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+  canvas.height = 180 * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  const W = canvas.offsetWidth, H = 180;
+
+  // Build 6 cycles of data
+  const cycles = buildCycleData(6);
+  const max = Math.max(...cycles.map(c => c.total), 1);
+  const pad = { l: 50, r: 10, t: 10, b: 30 };
+  const bw = (W - pad.l - pad.r) / cycles.length;
+
+  ctx.fillStyle = '#F2E8D5';
+  ctx.fillRect(0, 0, W, H);
+
+  cycles.forEach((c, i) => {
+    const bh = ((H - pad.t - pad.b) * c.total) / max;
+    const x = pad.l + i * bw + bw * 0.15;
+    const y = H - pad.b - bh;
+    ctx.fillStyle = i === cycles.length - 1 ? '#C4882A' : '#E8C989';
+    roundRect(ctx, x, y, bw * 0.7, bh, 4);
+    ctx.fill();
+    ctx.fillStyle = '#7A5C2A';
+    ctx.font = `${9 * window.devicePixelRatio / window.devicePixelRatio}px Courier New`;
+    ctx.textAlign = 'center';
+    ctx.fillText(c.label, x + bw * 0.35, H - 8);
+    if (c.total > 0) {
+      ctx.fillStyle = '#3A2A10';
+      ctx.fillText(Math.round(c.total / 1000) + 'k', x + bw * 0.35, y - 4);
+    }
+  });
+
+  // Y axis
+  ctx.strokeStyle = '#C8A870';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l - 2, pad.t); ctx.lineTo(pad.l - 2, H - pad.b); ctx.stroke();
+}
+
+function drawDonutChart() {
+  const canvas = document.getElementById('chart-donut');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+  canvas.height = 200 * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  const W = canvas.offsetWidth, H = 200;
+
+  const byCategory = getCycleSpentByCategory();
+  const entries = Object.entries(byCategory)
+    .map(([id, total]) => ({ id, total, cat: D.categories.find(c => c.id === id) }))
+    .filter(e => e.total > 0)
+    .sort((a, b) => b.total - a.total);
+
+  if (!entries.length) {
+    ctx.fillStyle = '#7A5C2A';
+    ctx.font = '12px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('Žádná data', W/2, H/2);
+    return;
+  }
+
+  const totalAmt = entries.reduce((s, e) => s + e.total, 0);
+  const cx = W / 2, cy = H * 0.48;
+  const outerR = Math.min(W / 2, H * 0.48) - 10;
+  const innerR = outerR * 0.55;
+
+  const colors = ['#C4882A','#E8A94A','#27AE60','#2980B9','#8E44AD','#E67E22','#E91E63','#1ABC9C','#95A5A6'];
+  let angle = -Math.PI / 2;
+
+  entries.forEach((e, i) => {
+    const sweep = (e.total / totalAmt) * 2 * Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, outerR, angle, angle + sweep);
+    ctx.closePath();
+    ctx.fillStyle = e.cat?.color || colors[i % colors.length];
+    ctx.fill();
+    ctx.strokeStyle = '#F2E8D5';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    angle += sweep;
+  });
+
+  // Inner hole
+  ctx.beginPath();
+  ctx.arc(cx, cy, innerR, 0, 2 * Math.PI);
+  ctx.fillStyle = '#FBF4E4';
+  ctx.fill();
+
+  // Center text
+  ctx.fillStyle = '#C4882A';
+  ctx.font = `bold 14px Georgia`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(Math.round(totalAmt / 1000) + 'k', cx, cy);
+
+  // Legend
+  const legend = document.getElementById('donut-legend');
+  if (legend) {
+    legend.innerHTML = entries.map((e, i) => `
+      <div class="legend-item">
+        <div class="legend-dot" style="background:${e.cat?.color || colors[i%colors.length]}"></div>
+        <span style="flex:1">${e.cat?.emoji || ''} ${e.cat?.name || e.id}</span>
+        <span>${fmtMoney(e.total)}</span>
+        <span style="color:var(--text2);margin-left:8px">${Math.round(e.total/totalAmt*100)}%</span>
+      </div>`).join('');
+  }
+}
+
+function drawSavingsChart() {
+  const canvas = document.getElementById('chart-savings');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+  canvas.height = 150 * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  const W = canvas.offsetWidth, H = 150;
+
+  const soos = getSoosAccount();
+  const cur = soos?.balance || 0;
+  const milestones = D.savingsMilestones;
+  const max = Math.max(...milestones.map(m => m.amount), cur * 1.1, 1);
+
+  const pad = { l: 50, r: 10, t: 20, b: 10 };
+  const innerH = H - pad.t - pad.b;
+
+  ctx.fillStyle = '#F2E8D5';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw milestone lines
+  milestones.forEach(m => {
+    const y = pad.t + innerH * (1 - m.amount / max);
+    ctx.strokeStyle = '#C8A870';
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#C8A870';
+    ctx.font = '9px Courier New';
+    ctx.textAlign = 'left';
+    ctx.fillText(m.emoji + ' ' + Math.round(m.amount/1000)+'k', pad.l + 2, y - 3);
+  });
+
+  // Draw current bar
+  const bh = innerH * (cur / max);
+  const bx = W / 2 - 20;
+  ctx.fillStyle = '#27AE60';
+  roundRect(ctx, bx, pad.t + innerH - bh, 40, bh, 6);
+  ctx.fill();
+
+  ctx.fillStyle = '#27AE60';
+  ctx.font = 'bold 12px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText(Math.round(cur / 1000) + 'k', W / 2, pad.t + innerH - bh - 6);
+}
+
+function buildCycleData(n) {
+  const all = D.expenses;
+  const pc = D.paycheck;
+  const result = [];
+
+  // current cycle
+  const { start: cs, end: ce } = getCycleRange();
+  result.push({
+    label: fmtDate(cs).split('.')[1] || fmtDate(cs),
+    total: all.filter(e => e.date >= cs && e.date < ce).reduce((s, e) => s + e.amount, 0)
+  });
+
+  // past cycles (approximate: go back 1 month at a time)
+  let s = new Date(cs + 'T00:00:00');
+  for (let i = 1; i < n; i++) {
+    const e2 = new Date(s);
+    s = new Date(s);
+    s.setMonth(s.getMonth() - 1);
+    const sStr = s.toISOString().slice(0, 10);
+    const eStr = e2.toISOString().slice(0, 10);
+    result.unshift({
+      label: fmtDate(sStr).split(' ')[1] || (sStr.slice(5,7)),
+      total: all.filter(e => e.date >= sStr && e.date < eStr).reduce((s2, e) => s2 + e.amount, 0)
+    });
+  }
+  return result.slice(-6);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  if (h <= 0) return;
+  r = Math.min(r, h/2, w/2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ============================================================
+// CALC TAB
+// ============================================================
+function renderCalc() {
+  const ziti = getZitiAccount();
+  const remaining = getCycleDaysRemaining();
+  const totalSpent = getCycleTotalSpent();
+
+  return `<div class="card">
+    <input id="calc-input" type="number" inputmode="decimal" placeholder="0" oninput="updateCalc()">
+    <div class="calc-hint">POČÍTÁ ZE ZŮSTATKU ŽITÍ</div>
+    <div id="calc-result" class="calc-result ok">
+      <div class="calc-icon">💰</div>
+      <div class="calc-msg">Zadejte částku pro výpočet</div>
+    </div>
+    <table class="calc-table">
+      <tr><td>Zůstatek Žití</td><td>${fmtMoney(ziti?.balance || 0)}</td></tr>
+      <tr><td>Utraceno tento cyklus</td><td>${fmtMoney(totalSpent)}</td></tr>
+      <tr><td>Dní do výplaty</td><td>${remaining}</td></tr>
+      <tr><td>Denní limit</td><td id="daily-limit">${remaining > 0 ? fmtMoney(Math.round((ziti?.balance || 0) / remaining)) : '—'}/den</td></tr>
+    </table>
+  </div>`;
+}
+
+function bindCalc() {}
+
+function updateCalc() {
+  const val = parseFloat(document.getElementById('calc-input').value) || 0;
+  const ziti = getZitiAccount();
+  const bal = ziti?.balance || 0;
+  const remaining = getCycleDaysRemaining();
+  const result = document.getElementById('calc-result');
+
+  if (!val) { result.className = 'calc-result ok'; result.innerHTML = '<div class="calc-icon">💰</div><div class="calc-msg">Zadejte částku pro výpočet</div>'; return; }
+
+  const after = bal - val;
+  const dailyAfter = remaining > 0 ? after / remaining : 0;
+
+  let cls, icon, msg;
+  if (after < 0) {
+    cls = 'no'; icon = '❌'; msg = `Nedostatek! Chybí ${fmtMoney(Math.abs(after))}`;
+  } else if (dailyAfter < 100 || after < val * 0.3) {
+    cls = 'warn'; icon = '⚠️'; msg = `Pozor — zbyde jen ${fmtMoney(after)} (${fmtMoney(Math.round(dailyAfter))}/den)`;
+  } else {
+    cls = 'ok'; icon = '✅'; msg = `V pořádku — zbyde ${fmtMoney(after)} (${fmtMoney(Math.round(dailyAfter))}/den)`;
+  }
+  result.className = 'calc-result ' + cls;
+  result.innerHTML = `<div class="calc-icon">${icon}</div><div class="calc-msg">${msg}</div>`;
+}
+
+// ============================================================
+// SETTINGS TAB
+// ============================================================
+function renderSettings() {
+  const pc = D.paycheck;
+  let html = '';
+
+  // General
+  html += `<div class="settings-section">
+    <div class="settings-section-title">OBECNÉ</div>
+    <div class="settings-item">
+      <div class="si-left"><label>DATUM VÝPLATY</label><input type="date" id="s-paydate" value="${pc.expectedDate||''}" onchange="savePaydate()"></div>
+    </div>
+    <div class="settings-item">
+      <div class="si-left"><label>VÝŠE VÝPLATY</label><input type="number" id="s-payamt" value="${pc.amount||''}" placeholder="0" onchange="savePayAmt()"></div>
+    </div>
+  </div>`;
+
+  // Kategorie
+  html += `<div class="settings-section">
+    <div class="settings-section-title">KATEGORIE</div>
+    ${D.categories.map(c => {
+      const count = D.expenses.filter(e => e.categoryId === c.id).length;
+      return `<div class="settings-item">
+        <div class="cat-item">
+          <div class="cat-emoji">${c.emoji}</div>
+          <div class="cat-info"><div>${c.name}</div><div class="cat-count">${count} výdajů</div></div>
+          <button class="edit-btn" onclick="openEditCategory('${c.id}')">Upravit</button>
+        </div>
+      </div>`;
+    }).join('')}
+    <button class="add-btn-full" onclick="openAddCategory()">+ přidat kategorii</button>
+  </div>`;
+
+  // Účty
+  html += `<div class="settings-section">
+    <div class="settings-section-title">ÚČTY</div>
+    ${D.accounts.map(a => `<div class="settings-item">
+      <div class="si-left">
+        <div style="font-size:13px;font-weight:bold">${a.name}</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:2px">${fmtMoney(a.balance)} ${a.isReserve ? '· REZERVA' : ''}</div>
+      </div>
+      <button class="edit-btn" onclick="openEditAccount('${a.id}')">Upravit</button>
+    </div>`).join('')}
+    <button class="add-btn-full" onclick="openAddAccount()">+ přidat účet</button>
+  </div>`;
+
+  // Data
+  html += `<div class="settings-section">
+    <div class="settings-section-title">DATA</div>
+    <div class="settings-item" style="flex-direction:column;align-items:stretch;gap:8px">
+      <button class="edit-btn" style="width:100%;padding:10px" onclick="exportData()">📤 Exportovat JSON</button>
+      <button class="edit-btn" style="width:100%;padding:10px" onclick="importDataPrompt()">📥 Importovat JSON</button>
+    </div>
+  </div>`;
+
+  return html;
+}
+
+function bindSettings() {}
+function savePaydate() { D.paycheck.expectedDate = document.getElementById('s-paydate').value; saveData(D); }
+function savePayAmt() { D.paycheck.amount = parseFloat(document.getElementById('s-payamt').value) || 0; saveData(D); }
+
+function exportData() {
+  const json = JSON.stringify(D, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'vault-export-' + today() + '.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importDataPrompt() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const imported = JSON.parse(ev.target.result);
+        if (confirm('Přepsat všechna data importem?')) {
+          D = imported;
+          saveData(D);
+          renderMain();
+        }
+      } catch { alert('Neplatný soubor JSON'); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+const EMOJIS = ['🛒','🎮','🚇','🐱','🤖','🎁','🏠','⚡','📦','🍕','☕','💊','📚','🚗','✈️','🎵','💄','🏋️','🐕','🌿'];
+
+function openModal(html) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('modal-overlay').onclick = function(e) {
+    if (e.target === this) closeModal();
+  };
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function emojiPickerHTML(selected) {
+  return `<div class="emoji-grid">${EMOJIS.map(e => `<div class="emoji-opt${e===selected?' selected':''}" onclick="selectEmoji(this,'${e}')">${e}</div>`).join('')}</div>`;
+}
+function selectEmoji(el, emoji) {
+  document.querySelectorAll('.emoji-opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('modal-selected-emoji').value = emoji;
+}
+
+// --- ADD EXPENSE ---
+function openAddExpense(prefillCat) {
+  const catOptions = D.categories.map(c => `<option value="${c.id}" ${c.id===prefillCat?'selected':''}>${c.emoji} ${c.name}</option>`).join('') +
+    '<option value="__new">➕ Nová kategorie...</option>';
+  const accOptions = D.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">Nový výdaj</div>
+    <div class="form-group"><label>ČÁSTKA</label><input class="big" type="number" inputmode="decimal" id="e-amount" placeholder="0"></div>
+    <div class="form-group"><label>DATUM</label><input type="date" id="e-date" value="${today()}"></div>
+    <div class="form-group"><label>POPIS</label><input type="text" id="e-desc" placeholder="co jsi koupil/a?"></div>
+    <div class="form-group"><label>KATEGORIE</label><select id="e-cat" onchange="checkNewCat(this)">${catOptions}</select></div>
+    <div class="form-group"><label>ÚČET</label><select id="e-acc">${accOptions}</select></div>
+    <div class="form-group"><label>POZNÁMKA</label><textarea id="e-note" placeholder="volitelně..."></textarea></div>
+    <button class="btn-primary" onclick="saveExpense()">Uložit výdaj</button>
+  `);
+}
+
+function checkNewCat(sel) {
+  if (sel.value === '__new') { closeModal(); openAddCategory(true); }
+}
+
+function saveExpense(id) {
+  const amount = parseFloat(document.getElementById('e-amount').value);
+  const date = document.getElementById('e-date').value;
+  const description = document.getElementById('e-desc').value.trim();
+  const categoryId = document.getElementById('e-cat').value;
+  const accountId = document.getElementById('e-acc').value;
+  const note = document.getElementById('e-note').value.trim();
+
+  if (!amount || !date || !description || !categoryId || !accountId) { alert('Vyplňte všechna povinná pole'); return; }
+  if (categoryId === '__new') return;
+
+  if (id) {
+    const i = D.expenses.findIndex(e => e.id === id);
+    if (i >= 0) D.expenses[i] = { ...D.expenses[i], amount, date, description, categoryId, accountId, note };
+  } else {
+    D.expenses.push({ id: uid(), amount, date, description, categoryId, accountId, note });
+  }
+  saveData(D); closeModal(); renderMain();
+}
+
+function openEditExpense(id) {
+  const e = D.expenses.find(ex => ex.id === id);
+  if (!e) return;
+  const catOptions = D.categories.map(c => `<option value="${c.id}" ${c.id===e.categoryId?'selected':''}>${c.emoji} ${c.name}</option>`).join('');
+  const accOptions = D.accounts.map(a => `<option value="${a.id}" ${a.id===e.accountId?'selected':''}>${a.name}</option>`).join('');
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">Upravit výdaj</div>
+    <div class="form-group"><label>ČÁSTKA</label><input class="big" type="number" inputmode="decimal" id="e-amount" value="${e.amount}"></div>
+    <div class="form-group"><label>DATUM</label><input type="date" id="e-date" value="${e.date}"></div>
+    <div class="form-group"><label>POPIS</label><input type="text" id="e-desc" value="${e.description}"></div>
+    <div class="form-group"><label>KATEGORIE</label><select id="e-cat">${catOptions}</select></div>
+    <div class="form-group"><label>ÚČET</label><select id="e-acc">${accOptions}</select></div>
+    <div class="form-group"><label>POZNÁMKA</label><textarea id="e-note">${e.note||''}</textarea></div>
+    <button class="btn-primary" onclick="saveExpense('${id}')">Uložit změny</button>
+    <button class="btn-danger" onclick="deleteExpense('${id}')">Smazat výdaj</button>
+  `);
+}
+
+function deleteExpense(id) {
+  if (!confirm('Smazat tento výdaj?')) return;
+  D.expenses = D.expenses.filter(e => e.id !== id);
+  saveData(D); closeModal(); renderMain();
+}
+
+// --- CATEGORY ---
+function openAddCategory(returnToExpense) {
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">Nová kategorie</div>
+    <div class="form-group"><label>NÁZEV</label><input type="text" id="cat-name" placeholder="název kategorie"></div>
+    <div class="form-group"><label>EMOJI</label>${emojiPickerHTML('📦')}<input type="hidden" id="modal-selected-emoji" value="📦"></div>
+    <button class="btn-primary" onclick="saveCategory(null, ${!!returnToExpense})">Uložit kategorii</button>
+  `);
+}
+
+function openEditCategory(id) {
+  const c = D.categories.find(x => x.id === id);
+  if (!c) return;
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">Upravit kategorii</div>
+    <div class="form-group"><label>NÁZEV</label><input type="text" id="cat-name" value="${c.name}"></div>
+    <div class="form-group"><label>EMOJI</label>${emojiPickerHTML(c.emoji)}<input type="hidden" id="modal-selected-emoji" value="${c.emoji}"></div>
+    <button class="btn-primary" onclick="saveCategory('${id}', false)">Uložit změny</button>
+    <button class="btn-danger" onclick="deleteCategory('${id}')">Smazat kategorii</button>
+  `);
+}
+
+function saveCategory(id, returnToExpense) {
+  const name = document.getElementById('cat-name').value.trim();
+  const emoji = document.getElementById('modal-selected-emoji').value;
+  if (!name) { alert('Zadejte název'); return; }
+  if (id) {
+    const i = D.categories.findIndex(c => c.id === id);
+    if (i >= 0) D.categories[i] = { ...D.categories[i], name, emoji };
+  } else {
+    const newCat = { id: uid(), name, emoji, color: '#95A5A6' };
+    D.categories.push(newCat);
+    if (returnToExpense) { saveData(D); closeModal(); openAddExpense(newCat.id); return; }
+  }
+  saveData(D); closeModal(); renderMain();
+}
+
+function deleteCategory(id) {
+  if (!confirm('Smazat tuto kategorii?')) return;
+  D.categories = D.categories.filter(c => c.id !== id);
+  saveData(D); closeModal(); renderMain();
+}
+
+// --- ACCOUNT ---
+function openAddAccount() {
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">Nový účet</div>
+    <div class="form-group"><label>NÁZEV</label><input type="text" id="acc-name" placeholder="název účtu"></div>
+    <div class="form-group"><label>BANKA</label><input type="text" id="acc-bank" placeholder="volitelně"></div>
+    <div class="form-group"><label>ZŮSTATEK</label><input type="number" inputmode="decimal" id="acc-bal" value="0"></div>
+    <div class="form-group">
+      <div class="toggle-wrap"><label>Zahrnout do kalkulačky</label>
+        <label class="toggle"><input type="checkbox" id="acc-calc"><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="toggle-wrap"><label>Rezerva</label>
+        <label class="toggle"><input type="checkbox" id="acc-reserve"><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="saveAccount(null)">Uložit účet</button>
+  `);
+}
+
+function openEditAccount(id) {
+  const a = D.accounts.find(x => x.id === id);
+  if (!a) return;
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">Upravit účet</div>
+    <div class="form-group"><label>NÁZEV</label><input type="text" id="acc-name" value="${a.name}"></div>
+    <div class="form-group"><label>BANKA</label><input type="text" id="acc-bank" value="${a.bank||''}"></div>
+    <div class="form-group"><label>ZŮSTATEK</label><input type="number" inputmode="decimal" id="acc-bal" value="${a.balance}"></div>
+    <div class="form-group">
+      <div class="toggle-wrap"><label>Zahrnout do kalkulačky</label>
+        <label class="toggle"><input type="checkbox" id="acc-calc" ${a.includeInCalc?'checked':''}><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="toggle-wrap"><label>Rezerva</label>
+        <label class="toggle"><input type="checkbox" id="acc-reserve" ${a.isReserve?'checked':''}><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="saveAccount('${id}')">Uložit změny</button>
+    <button class="btn-danger" onclick="deleteAccount('${id}')">Smazat účet</button>
+  `);
+}
+
+function saveAccount(id) {
+  const name = document.getElementById('acc-name').value.trim();
+  const bank = document.getElementById('acc-bank').value.trim();
+  const balance = parseFloat(document.getElementById('acc-bal').value) || 0;
+  const includeInCalc = document.getElementById('acc-calc').checked;
+  const isReserve = document.getElementById('acc-reserve').checked;
+  if (!name) { alert('Zadejte název'); return; }
+  if (id) {
+    const i = D.accounts.findIndex(a => a.id === id);
+    if (i >= 0) D.accounts[i] = { ...D.accounts[i], name, bank, balance, includeInCalc, isReserve };
+  } else {
+    D.accounts.push({ id: uid(), name, bank, balance, includeInCalc, isReserve });
+  }
+  saveData(D); closeModal(); renderMain();
+}
+
+function deleteAccount(id) {
+  if (!confirm('Smazat tento účet?')) return;
+  D.accounts = D.accounts.filter(a => a.id !== id);
+  saveData(D); closeModal(); renderMain();
+}
+
+// --- DEADLINE ---
+function openAddDeadline() {
+  const accOptions = D.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">Blížící se platba</div>
+    <div class="form-group"><label>NÁZEV</label><input type="text" id="dl-name" placeholder="název platby"></div>
+    <div class="form-group"><label>ČÁSTKA</label><input type="number" inputmode="decimal" id="dl-amount" value="0"></div>
+    <div class="form-group"><label>DATUM SPLATNOSTI</label><input type="date" id="dl-date" value="${today()}"></div>
+    <div class="form-group"><label>ÚČET</label><select id="dl-acc">${accOptions}</select></div>
+    <div class="form-group"><label>EMOJI</label>${emojiPickerHTML('📅')}<input type="hidden" id="modal-selected-emoji" value="📅"></div>
+    <div class="form-group"><label>OPAKOVÁNÍ</label><select id="dl-repeat">
+      <option value="once">Jednorázové</option>
+      <option value="monthly">Měsíčně</option>
+      <option value="yearly">Ročně</option>
+    </select></div>
+    <button class="btn-primary" onclick="saveDeadline(null)">Uložit platbu</button>
+  `);
+}
+
+function openEditDeadline(id) {
+  const d = D.deadlines.find(x => x.id === id);
+  if (!d) return;
+  const accOptions = D.accounts.map(a => `<option value="${a.id}" ${a.id===d.accountId?'selected':''}>${a.name}</option>`).join('');
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">Upravit platbu</div>
+    <div class="form-group"><label>NÁZEV</label><input type="text" id="dl-name" value="${d.name}"></div>
+    <div class="form-group"><label>ČÁSTKA</label><input type="number" inputmode="decimal" id="dl-amount" value="${d.amount}"></div>
+    <div class="form-group"><label>DATUM SPLATNOSTI</label><input type="date" id="dl-date" value="${d.dueDate}"></div>
+    <div class="form-group"><label>ÚČET</label><select id="dl-acc">${accOptions}</select></div>
+    <div class="form-group"><label>EMOJI</label>${emojiPickerHTML(d.emoji||'📅')}<input type="hidden" id="modal-selected-emoji" value="${d.emoji||'📅'}"></div>
+    <div class="form-group"><label>OPAKOVÁNÍ</label><select id="dl-repeat">
+      <option value="once" ${d.repeat==='once'?'selected':''}>Jednorázové</option>
+      <option value="monthly" ${d.repeat==='monthly'?'selected':''}>Měsíčně</option>
+      <option value="yearly" ${d.repeat==='yearly'?'selected':''}>Ročně</option>
+    </select></div>
+    <button class="btn-primary" onclick="saveDeadline('${id}')">Uložit změny</button>
+    <button class="btn-danger" onclick="deleteDeadline('${id}')">Smazat platbu</button>
+  `);
+}
+
+function saveDeadline(id) {
+  const name = document.getElementById('dl-name').value.trim();
+  const amount = parseFloat(document.getElementById('dl-amount').value) || 0;
+  const dueDate = document.getElementById('dl-date').value;
+  const accountId = document.getElementById('dl-acc').value;
+  const emoji = document.getElementById('modal-selected-emoji').value;
+  const repeat = document.getElementById('dl-repeat').value;
+  if (!name || !dueDate) { alert('Vyplňte název a datum'); return; }
+  if (id) {
+    const i = D.deadlines.findIndex(d => d.id === id);
+    if (i >= 0) D.deadlines[i] = { ...D.deadlines[i], name, amount, dueDate, accountId, emoji, repeat };
+  } else {
+    D.deadlines.push({ id: uid(), name, amount, dueDate, accountId, emoji, repeat });
+  }
+  saveData(D); closeModal(); renderMain();
+}
+
+function deleteDeadline(id) {
+  if (!confirm('Smazat tuto platbu?')) return;
+  D.deadlines = D.deadlines.filter(d => d.id !== id);
+  saveData(D); closeModal(); renderMain();
+}
+
+// --- PLANNED ---
+function openAddPlanned() {
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">Plánovaný výdaj</div>
+    <div class="form-group"><label>NÁZEV</label><input type="text" id="pl-name" placeholder="co plánuješ koupit?"></div>
+    <div class="form-group"><label>ODHADOVANÁ ČÁSTKA</label><input type="number" inputmode="decimal" id="pl-amount" value="0"></div>
+    <div class="form-group"><label>RELEVANTNÍ OD</label><input type="date" id="pl-date" value="${today()}"></div>
+    <div class="form-group"><label>EMOJI</label>${emojiPickerHTML('🎯')}<input type="hidden" id="modal-selected-emoji" value="🎯"></div>
+    <div class="form-group"><label>POZNÁMKA</label><textarea id="pl-note" placeholder="volitelně..."></textarea></div>
+    <button class="btn-primary" onclick="savePlanned(null)">Uložit</button>
+  `);
+}
+
+function openEditPlanned(id) {
+  const p = D.planned.find(x => x.id === id);
+  if (!p) return;
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">Upravit plánovaný výdaj</div>
+    <div class="form-group"><label>NÁZEV</label><input type="text" id="pl-name" value="${p.name}"></div>
+    <div class="form-group"><label>ODHADOVANÁ ČÁSTKA</label><input type="number" inputmode="decimal" id="pl-amount" value="${p.amount}"></div>
+    <div class="form-group"><label>RELEVANTNÍ OD</label><input type="date" id="pl-date" value="${p.relevantFrom}"></div>
+    <div class="form-group"><label>EMOJI</label>${emojiPickerHTML(p.emoji||'🎯')}<input type="hidden" id="modal-selected-emoji" value="${p.emoji||'🎯'}"></div>
+    <div class="form-group"><label>POZNÁMKA</label><textarea id="pl-note">${p.note||''}</textarea></div>
+    <button class="btn-primary" onclick="savePlanned('${id}')">Uložit změny</button>
+    <button class="btn-danger" onclick="deletePlanned('${id}')">Smazat</button>
+  `);
+}
+
+function savePlanned(id) {
+  const name = document.getElementById('pl-name').value.trim();
+  const amount = parseFloat(document.getElementById('pl-amount').value) || 0;
+  const relevantFrom = document.getElementById('pl-date').value;
+  const emoji = document.getElementById('modal-selected-emoji').value;
+  const note = document.getElementById('pl-note').value.trim();
+  if (!name) { alert('Zadejte název'); return; }
+  if (id) {
+    const i = D.planned.findIndex(p => p.id === id);
+    if (i >= 0) D.planned[i] = { ...D.planned[i], name, amount, relevantFrom, emoji, note };
+  } else {
+    D.planned.push({ id: uid(), name, amount, relevantFrom, emoji, note });
+  }
+  saveData(D); closeModal(); renderMain();
+}
+
+function deletePlanned(id) {
+  if (!confirm('Smazat plánovaný výdaj?')) return;
+  D.planned = D.planned.filter(p => p.id !== id);
+  saveData(D); closeModal(); renderMain();
+}
+
+// --- PAYCHECK ---
+function openPaycheckModal() {
+  const pc = D.paycheck;
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">💰 Výplata</div>
+    <div class="form-group"><label>DATUM VÝPLATY</label><input type="date" id="pc-date" value="${pc.actualDate || today()}"></div>
+    <div class="form-group"><label>VÝŠE VÝPLATY</label><input type="number" inputmode="decimal" id="pc-amount" value="${pc.amount||0}" class="big"></div>
+    <button class="btn-primary" onclick="savePaycheck()">Potvrdit výplatu</button>
+    ${pc.history && pc.history.length ? `<div style="margin-top:16px"><div class="card-title" style="margin-bottom:8px">HISTORIE</div>
+      ${pc.history.slice(-5).reverse().map(h => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)"><span>${fmtDate(h.date)}</span><span>${fmtMoney(h.amount)}</span></div>`).join('')}
+    </div>` : ''}
+  `);
+}
+
+function savePaycheck() {
+  const date = document.getElementById('pc-date').value;
+  const amount = parseFloat(document.getElementById('pc-amount').value) || 0;
+  if (!date) { alert('Zadejte datum'); return; }
+
+  if (!D.paycheck.history) D.paycheck.history = [];
+  D.paycheck.history.push({ date: D.paycheck.actualDate || date, amount: D.paycheck.amount || amount });
+  D.paycheck.actualDate = date;
+  D.paycheck.amount = amount;
+
+  saveData(D); closeModal(); renderMain();
+}
+
+// ============================================================
+// SERVICE WORKER
+// ============================================================
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(console.error);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+renderMain();
+</script>
+</body>
+</html>
